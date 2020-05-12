@@ -1,0 +1,274 @@
+---
+title: "Group and Detrend"
+output: html_document
+bibliography: /Users/wabarr/Documents/ZoteroFull.bib
+csl: /Users/wabarr/Dropbox/CSL-citation-styles/JHE.csl
+---
+
+
+# [Click me to Jump Directly to New Results](#newResults)
+
+# [Click me to Jump Directly to Detrended by Order Results](#detrendedOrder)
+
+# [Click me to Jump Directly to justification for using first differencing](#differencing)
+
+
+
+## Load in sorted fossils data
+
+```{r}
+library(ggplot2)
+theme_set(theme_bw(25))
+fossils <- read.table("SortedFossilData.text", header=TRUE)
+#qplot(y=Actual.MYA, x=1:nrow(fossils), data=fossils, main="make sure dataframe is sorted")
+```
+
+## First, I think we need the average brain size per interval. If we want to treat these properly as time series, we can't have a bunch of values for a single time measurement. 
+
+### I am also cleaning up the variable naming scheme here
+
+```{r}
+library(dplyr)
+makeMeanFossil <- function(df = fossils) {
+  group_by(df, Actual.MYA) %>% 
+  summarise(logCC = mean(log(CC)),
+            meanOxy1 = mean(X1Mya_M_oxy),
+            meanOxy5 = mean(X5Mya_M_oxy),
+            meanOxy400 = mean(X400k_M_oxy),
+            meanOxy200 = mean(X200k_M_oxy),
+            meanOxy100 = mean(X100k_M_oxy),
+            meanOxy40 = mean(X40k_M_oxy),
+            sdOxy1 = mean(X1Mya_SD_oxy),
+            sdOxy5 = mean(X5Mya_SD_oxy),
+            sdOxy400 = mean(X400k_SD_oxy),
+            sdOxy200 = mean(X200k_SD_oxy),
+            sdOxy100 = mean(X100k_SD_oxy),
+            sdOxy40 = mean(X40k_SD_oxy),
+            slopeOxy1 = mean(X1Mya_slope_oxy),
+            slopeOxy5 = mean(X5Mya_slope_oxy),
+            slopeOxy400 = mean(X400k_slope_oxy),
+            slopeOxy200 = mean(X200k_slope_oxy),
+            slopeOxy100 = mean(X100k_slope_oxy),
+            slopeOxy40 = mean(X40k_slope_oxy)
+            )
+  }
+meanFossil <- makeMeanFossil()
+```
+
+
+## Plot grouped time series - note that they are both trended
+
+```{r}
+qplot(x=1:nrow(meanFossil), y=meanOxy1, data=meanFossil)
+qplot(x=1:nrow(meanFossil), y=logCC, data=meanFossil)
+```
+
+## Plot differenced time series - note that differencing removes trend
+
+```{r}
+qplot(x=1:(nrow(meanFossil)-1), y=diff(meanFossil$meanOxy1))
+qplot(x=1:(nrow(meanFossil)-1), y=diff(meanFossil$logCC))
+```
+
+## Plot the detrended time series against one another
+
+```{r}
+qplot(x=diff(meanFossil$meanOxy1), y=diff(meanFossil$logCC))
+```
+
+
+## Write function to difference timeseries, and do lm for a given timeperiod using the `meanFossil` dataframe {#newResults}
+
+```{r}
+doAnalysis <- function(tempRes, sparse=TRUE, diff=TRUE, df=meanFossil) {
+  #tempRes is an integer indicating the temporal resolution, (e.g. 100), matching the naming scheme in the meanFossil dataframe 
+  prefix <- ifelse (diff==TRUE, yes = "diff(", no = "")
+  suffix <- ifelse (diff==TRUE, yes = ")", no = "")
+  indepVars <- paste0(prefix, c("meanOxy","sdOxy", "slopeOxy"), tempRes, suffix)
+  
+  depVar <- paste0(prefix, "logCC", suffix)
+  
+  # set up separator string for formulat creation
+  separator <- ifelse (sparse==TRUE, yes = " + ", no = " * ")
+  
+  form <- formula(paste(depVar, paste(indepVars, collapse = separator), sep=" ~ " ))
+  mod <- lm(formula = form, data = df)
+  return(mod)
+  }
+```
+
+## 5 Mya, un-differenced
+
+```{r}
+summary(doAnalysis(5, diff=FALSE))
+```
+
+## 5 Mya, differenced
+
+```{r}
+summary(doAnalysis(5, diff=TRUE))
+```
+
+## 1 Mya, un-differenced
+
+```{r}
+summary(doAnalysis(1, diff=FALSE))
+```
+
+## 1 Mya, differenced
+
+```{r}
+summary(doAnalysis(1, diff=TRUE))
+```
+
+## 400 Ka, un-differenced
+
+```{r}
+summary(doAnalysis(400, diff=FALSE))
+```
+
+## 400 Ka, differenced
+
+```{r}
+summary(doAnalysis(400, diff=TRUE))
+```
+
+## 200 Ka, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE))
+```
+
+## 200 Ka, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE))
+```
+
+## 100 Ka, un-differenced
+
+```{r}
+summary(doAnalysis(100, diff=FALSE))
+```
+
+## 100 Ka, differenced
+
+```{r}
+summary(doAnalysis(100, diff=TRUE))
+```
+
+## 40 Ka, un-differenced
+
+```{r}
+summary(doAnalysis(40, diff=FALSE))
+```
+
+## 40 Ka, differenced
+
+```{r}
+summary(doAnalysis(40, diff=TRUE))
+```
+
+## Interpretation of results
+
+Consistently, the only significant results are found in the un-differenced time series, for the mean oxygen variables. There are no significant relationships for the differenced time series. I interpret this to mean that the cross correlation between the brain size time series and the the mean oxygen time series is a result of both series being autocorrelated and strongly trended. 
+
+# Detrended results, by Order {#detrendedOrder}  
+
+## 200 Ka, Primates, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE, df = makeMeanFossil(df = filter(fossils, Order == "Primates"))))
+```
+
+## 200 Ka, Primates, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE, df = makeMeanFossil(df = filter(fossils, Order == "Primates"))))
+```
+
+## 200 Ka, Perissodactyla, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE, df = makeMeanFossil(df = filter(fossils, Order == "Perissodactyla"))))
+```
+
+## 200 Ka, Perissodactyla, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE, df = makeMeanFossil(df = filter(fossils, Order == "Perissodactyla"))))
+```
+
+## 200 Ka, Artiodactyla, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE, df = makeMeanFossil(df = filter(fossils, Order == "Artiodactyla"))))
+```
+
+## 200 Ka, Artiodactyla, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE, df = makeMeanFossil(df = filter(fossils, Order == "Artiodactyla"))))
+```
+
+## 200 Ka, Carnivora, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE, df = makeMeanFossil(df = filter(fossils, Order == "Carnivora"))))
+```
+
+## 200 Ka, Carnivora, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE, df = makeMeanFossil(df = filter(fossils, Order == "Carnivora"))))
+```
+
+## 200 Ka, Cetacea, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE, df = makeMeanFossil(df = filter(fossils, Order == "Cetacea"))))
+```
+
+## 200 Ka, Cetacea, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE, df = makeMeanFossil(df = filter(fossils, Order == "Cetacea"))))
+```
+
+## 200 Ka, Hominins, un-differenced
+
+```{r}
+summary(doAnalysis(200, diff=FALSE, df = makeMeanFossil(df = filter(fossils, Order == "Hominins"))))
+```
+
+## 200 Ka, Hominins, differenced
+
+```{r}
+summary(doAnalysis(200, diff=TRUE, df = makeMeanFossil(df = filter(fossils, Order == "Hominins"))))
+```
+
+# Justification for looking at first differences of data {#differencing}
+
+The analysis of time series data has an extensive literature with established best practices [e.g., @chatfield_analysis_2004].
+When it comes to computing cross-correlations between two time series (as we are interested in doing here), it is typical to restrict cross-correlations to *stationary* time series [@chatfield_analysis_2004, pg. 155]. 
+Among other things, stationary time series have a constant mean function, which is another way of saying there is no directional *trend* in the series, and no significant auto-correlation.
+John Alroy and colleagues [-@alroy_global_2000] discuss this issue at length in their widely-cited paper on the (lack of) relationship between global oxygen isotope records and various aspects of Cenozoic mammalian evolution, including average body mass.
+The authors make an impassioned argument against cross-correlating non-stationary time series with strong trends, such as the oxygen isotope record.
+The reason is that any two trended time series with high auto-correlation will also exhibit strong cross-correlations.
+This makes any interpretation of causality in the cross-correlation highly suspect, as even random walks will produce significant cross-correlations due to auto-correlation. 
+
+One solution is to instead cross-correlate *detrended* time series by calculating the first differences of the original time series.
+The new time series are computed as the following: $y'_t=y_t− y_{t−1}$ where each value of the new time series is indicated by $y'_t$.
+The quantity $y_t$ is the original value of the time series at time $t$ and $y_{t-1}$ is the value of the original time series at time $t-1$.
+Note that the new time series of first differences will be of length $n-1$ where $n$ is the original length of the time series.
+The result is a new time series where each point reflects the difference between adjacent time bins.
+These derivative time series are generally stationary and not auto-correlated, so they are more appropriate for investigating cross-correlations.
+
+
+Alroy's warning against cross-correlating was also formalized as commandment #6 in his [10 statistical commandments of Chairman Alroy](https://www.nceas.ucsb.edu/~alroy/JA_commandments.html): 
+
+> Thou shalt difference thy data! Time series data are almost always autocorrelated (and thou shalt test for that). Still, people insist on interpreting "trends" shared by pairs of time series as meaningful cross-correlations, even though autocorrelation makes finding these demonic things the null hypothesis! Even random walks produce such patterns! FEAR YE SINNERS! The easiest and most powerful way to remove the autocorrelation is to take first differences. So, the next time thou wantest to correlate population growth with the rate of sea-floor spreading - and people will - difference thy !@#$% data.
+
+
+
+## References

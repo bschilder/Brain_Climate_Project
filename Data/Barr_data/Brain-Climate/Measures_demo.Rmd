@@ -1,0 +1,139 @@
+---
+title: "Measures_demo"
+author: "Brian Schilder"
+date: "March 20, 2015"
+output: html_document
+---
+
+# Measures demo for brain-climate poster: Trend, Variability, and Rate
+
+## Trend
+```{r}
+library(ggplot2)
+
+Trend <- data.frame(c(1, 1), c(2.5, 2.5), c(0, 1), c(1, 2))
+
+Trend_low <- ggplot() + geom_line(aes(x=Trend[,3], y=Trend[,1]), col="blue", size=2) + labs(x=" ", y="δ18O", title="Low") + 
+  theme_classic(40) +  scale_x_continuous(breaks = round(seq(0, 1, by = 0.5),1)) + ylim(0,3) + theme(plot.title = element_text(vjust=3))
+Trend_low
+
+Trend_high <- ggplot() + geom_line(aes(x=Trend[,4], y=Trend[,2]), col="blue", size=2) + labs(x=" ", y=" ", title="High") + 
+  theme_classic(40) +  scale_x_continuous(breaks = round(seq(1, 2, by = 0.5),1)) + 
+  scale_y_continuous(breaks = round(seq(0, 3, by = 1),1)) + ylim(0,3) + theme(plot.title = element_text(vjust=3))
+Trend_high 
+
+```
+
+## Variability
+
+```{r}
+x <- seq(0, 1, 0.01)
+ylow <- sin(10*x)
+yhigh <- sin(50*x)
+Var <- data.frame(x, ylow, yhigh)
+
+Var_low <- ggplot() + geom_line(aes(x=Var$x, y=Var$ylow), col="red", size=2) + labs(x=" ", y="δ18O") + theme_classic(40) + scale_x_continuous(breaks = round(seq(0, 1, by = 0.5),1)) + scale_y_continuous(breaks = round(seq(-1, 1, by = 1),1))
+Var_low
+
+Var_high <- ggplot() + geom_line(aes(x=Var$x, y=Var$yhigh), col="red", size=2) + labs(x=" ", y=" ") + theme_classic(40) + scale_x_continuous(breaks = round(seq(0, 1, by = 0.5),1)) + scale_y_continuous(breaks = round(seq(-1, 1, by = 1),1))
+Var_high
+```
+
+## Rate
+
+```{r}
+
+Rate_low <- ggplot() + geom_line(aes(x=Trend[,3], y=Trend[,1]), col="white") +
+  geom_abline(intercept=0.5, slope=0.25, col="green", size=2) + 
+  labs(x=" ", y="δ18O") + theme_classic(40) +  
+  scale_x_continuous(breaks = round(seq(0, 1, by = 0.5),1)) + scale_y_continuous(breaks = round(seq(0, 2, by = .5),1)) 
+Rate_low 
+
+Rate_high <- ggplot() + geom_line(aes(x=Trend[,3], y=Trend[,1]), col="white") +
+  geom_abline(intercept=0.5, slope=1, col="green", size=2) + labs(x=" ", y=" ") + 
+  theme_classic(40) +  
+  scale_x_continuous(breaks = round(seq(0, 1, by = 0.5),1)) + scale_y_continuous(breaks = round(seq(0, 2, by = .5),1))
+Rate_high 
+
+```
+
+## Multiplot
+
+```{r}
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+## Combined plot
+
+```{r fig.width = 2, fig.height = 2}
+multiplot(Trend_low, Var_low, Rate_low, Trend_high, Var_high, Rate_high, cols=2)
+```
+
+# Interval Demo
+
+```{r}
+detach(package:dplyr, unload = TRUE)
+library(scales)
+zachos <- read.table("Zachos2001Climate.txt", header=TRUE, sep="\t")
+zachos$filteredO18 <- filter(zachos$o18, filter = rep(1, 70), method = "convolution")
+
+hominin <- read.table("Hominin_climatebrains_means.csv", header=TRUE, sep=",")
+hominin$Species <- gsub(" ", "_", hominin$Species)
+hominin$MYA <- abs(hominin$MYA)
+
+plot <- ggplot(data=fossils, aes(color=Order))
+
+Demo <- plot +
+  geom_rect(aes(xmin=4.4, xmax=5.4, ymin=0, ymax=8), fill="grey") +
+  geom_line(data=zachos,aes(x=age*1, y=rescale(filteredO18*1,c(-1,8))), color="black") +
+  geom_point(data=hominin, aes(x=MYA, y=log(CC), fill=Order), size=6) +
+  scale_x_reverse() +
+  xlim(10, 0) +
+  labs(x="MYA", y="log(CC)", title="Measurement Example") +
+  theme_bw() +
+  theme(text = element_text(size=40), plot.title = element_text(vjust=3), legend.position="none")
+Demo
