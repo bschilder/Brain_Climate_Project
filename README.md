@@ -2,6 +2,10 @@
 Investigation of whether changes in paleoclimate influenced brain size evolution across five mammalian taxonomic orders
 
 
+![Climatic Influences figure.png](./Tables_Figures/Climatic Influences figure.png)  
+
+
+
 ## Title:  
 Global climate influenced the evolutionary history of brain size increase in some mammalian lineages, but not in hominins
 
