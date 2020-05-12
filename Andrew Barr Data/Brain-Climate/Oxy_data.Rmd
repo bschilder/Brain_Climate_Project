@@ -1,0 +1,38 @@
+---
+title: "Oxy_data"
+author: "Brian Schilder"
+date: "March 10, 2015"
+output: html_document
+---
+```{r}
+oxy <- read.csv(file="/Users/schilder/Desktop/Rdata/Oxy_data.csv", header=TRUE, na.strings=NA)
+str(oxy)
+library(ggplot2)
+
+Age.18O <- ggplot() + geom_point(data=oxy, aes(y=X18O, x=MYA)) + xlim(-5, 0)
+Age.Mean <- ggplot() + geom_point(data=oxy, aes(y=oxy_M, x=MYA)) + xlim(-5, 0)
+Age.SD <- ggplot() + geom_point(data=oxy, aes(y=oxy_SD, x=MYA)) + xlim(-5, 0)
+Age.Slope <- ggplot() + geom_point(data=oxy, aes(y=oxy_slope, x=MYA)) + xlim(-5, 0)
+
+Super.plot5 <- ggplot(data=oxy) + xlim(-5, 0) + 
+  geom_line(aes(y=oxy_M, x=MYA, color="blue")) + 
+  geom_line(aes(y=oxy_SD, x=MYA, color="red")) + 
+  geom_line(aes(y=oxy_slope, x=MYA, color="green")) +
+  annotate("text", x= -4, y= 2, label="SD", color="red") + 
+  annotate("text", x= -4, y= 1.8, label="Mean", color="blue") +
+  annotate("text", x= -4, y= 1.6, label="Slope", color="green") +
+  ylab("d18O") +
+  theme(legend.position = "none")
+Super.plot5
+
+Super.plot65 <- ggplot(data=oxy) + 
+  geom_line(aes(y=oxy_M, x=MYA, color="blue")) + 
+  geom_line(aes(y=oxy_SD, x=MYA, color="red")) + 
+  geom_line(aes(y=oxy_slope, x=MYA, color="green")) +
+  annotate("text", x= -4, y= 2, label="SD", color="red") + 
+  annotate("text", x= -4, y= 1.8, label="Mean", color="blue") +
+  annotate("text", x= -4, y= 1.6, label="Slope", color="green") +
+  ylab("d18O") +
+  theme(legend.position = "none")
+Super.plot65
+```

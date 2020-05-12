@@ -1,0 +1,847 @@
+# New analysis with Shultz-Dunbar mammals plus Boddy Primates
+
+### Load datasets and clean up species columns and column names
+```{r}
+library(dplyr)
+brains <- read.table("brains2.txt", header=TRUE, sep="\t")
+#brains <- filter(brains, Order != "Insectivore") %>% droplevels() ## All brains except Insectivores
+# brains <- filter(brains, Order == "Artiodactyla") %>% droplevels()
+ brains <- filter(brains, Order == "Carnivora") %>% droplevels()
+# brains <- filter(brains, Order == "Cetacea") %>% droplevels()
+# brains <- filter(brains, Order == "Perissodactyla") %>% droplevels()
+# brains <- filter(brains, Order == "Primates") %>% droplevels()
+```
+
+## Redo ancestral state with composite dataset 
+
+```{r cache=TRUE}
+library(ape)
+library(geiger)
+library(xlsx)
+library(ggplot2)
+treez <- read.nexus("Bininda_Emonds_correctedDates_FULLPHYLOG.txt")
+tree <- treez[[grep(pattern = "bestDates", names(treez))]] #get the best dates tree
+rm(treez)
+
+name_matchup <- name.check(phy = tree, data = brains, data.names = brains$Species)
+tree <- drop.tip(phy = tree, name_matchup$tree_not_data)
+tree <- multi2di(tree)
+tree$edge.length[tree$edge.length == 0] <- 0.1
+tree <- makeLabel(tree) #Fills in empty node names
+brains <- brains[brains$Species %in% tree$tip.label,]
+
+stopifnot(nrow(brains)==length(tree$tip.label))
+
+brains_CC <- brains$CC
+names(brains_CC) <- brains$Species
+
+ancest <- ace(x = brains_CC, phy = tree, type="continuous", method="REML")
+
+```
+
+## Export plot 
+
+```{r}
+
+#pdf("CompositeAncestral.pdf", width=20, height=200)
+#plot(tree)
+#nodelabels(round(ancest$ace, 2), cex=1.2)
+#tiplabels(round(brains$CC, 2))
+#dev.off()
+
+#plot.phylo(tree, cex=0.7)
+#tiplabels(text = round(brains$CC, 2)
+
+
+
+#library(xlsx)
+#Export a file containing species name (or ancestral node #) with associated CC
+#Output <- c(brains_CC, ancest$ace)
+#write.xlsx(Output, "Export.xlsx")
+
+```
+
+# Calculate Climatic Measures
+
+## Prep Data
+
+```{r}
+library(ape)
+zachos <- read.table("Zachos2001Climate.txt", header=TRUE, sep="\t")
+ancest_climate <- numeric(326)
+
+names(ancest$ace) <- tree$node.label
+str(ancest$ace)
+
+#Calculate time from all node to tip
+mya <- branching.times(phy = tree)
+nodes <- names(mya)
+fdata <- data.frame(mya, nodes, CC = log(ancest$ace), orig_CC =ancest$ace) # Log and then scale CC 
+rownames(fdata) <- NULL
+branch65 <- dplyr::filter(fdata, mya <= 65)
+
+data <- branch65$mya
+
+results <- numeric(254)
+
+plot(tree)
+nodelabels(text = tree$node.label, frame="none", cex=0.75)
+
+# Identifies most recent common ancestor
+  ## mrca(phylogeny)["taxon1", "taxon2"]
+```
+
+## 1MY Measures
+
+```{r}
+library(dplyr)
+## MEAN
+Mean1MY <- function(data){
+  start.time <- data
+  end.time <- start.time + 1
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  results <- mean(filteredZachos$o18)
+  return(results) }
+mean1MY <- sapply(X=data, FUN=Mean1MY)
+branch65$mean1MY <- scale(mean1MY) #scale at the end
+
+
+## SD
+SD1MY <- function(data){
+  start.time <- data
+  end.time <- start.time + 1
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  results <- sd(filteredZachos$o18)
+  return(results) }
+sd1MY <- sapply(X=data, FUN=SD1MY)
+branch65$sd1MY <- scale(sd1MY)
+
+
+## SLOPE
+Slope1MY <- function(data){
+  start.time <- data
+  end.time <- start.time + 1
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  Model <- lm(o18 ~ age, data=filteredZachos)
+  slope <- Model$coefficients[2]
+  results <- slope
+  return(results) }
+slope1MY <- sapply(X=data, FUN=Slope1MY)
+branch65$slope1MY <- scale(slope1MY)
+```
+
+## 400KY Measures
+
+```{r}
+## MEAN
+Mean400KY <- function(data){
+  start.time <- data
+  end.time <- start.time + .4
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  results <- mean(filteredZachos$o18)
+  return(results) }
+mean400KY <- sapply(X=data, FUN=Mean400KY)
+branch65$mean400KY <- scale(mean400KY)
+
+
+## SD
+SD400KY <- function(data){
+  start.time <- data
+  end.time <- start.time + .4
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  results <- sd(filteredZachos$o18)
+  return(results) }
+sd400KY <- sapply(X=data, FUN=SD400KY)
+branch65$sd400KY <- scale(sd400KY)
+
+
+## SLOPE
+Slope400KY <- function(data){
+  start.time <- data
+  end.time <- start.time + .4
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  Model <- lm(o18 ~ age, data=filteredZachos)
+  slope <- Model$coefficients[2]
+  results <- slope
+  return(results) }
+slope400KY <- sapply(X=data, FUN=Slope400KY)
+branch65$slope400KY <- scale(slope400KY)
+```
+
+## 200KY Measures
+
+```{r}
+## MEAN
+Mean200KY <- function(data){
+  start.time <- data
+  end.time <- start.time + .2
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  results <- mean(filteredZachos$o18)
+  return(results) }
+mean200KY <- sapply(X=data, FUN=Mean200KY)
+branch65$mean200KY <- scale(mean200KY)
+
+
+## SD
+SD200KY <- function(data){
+  start.time <- data
+  end.time <- start.time + .2
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  results <- sd(filteredZachos$o18)
+  return(results) }
+sd200KY <- sapply(X=data, FUN=SD200KY)
+branch65$sd200KY <- scale(sd200KY)
+
+
+## SLOPE
+Slope200KY <- function(data){
+  start.time <- data
+  end.time <- start.time + .2
+  filteredZachos <- filter(zachos, 
+                         age >= start.time, 
+                         age <= end.time)
+  Model <- lm(o18 ~ age, data=filteredZachos)
+  slope <- Model$coefficients[2]
+  results <- slope
+  return(results) }
+slope200KY <- sapply(X=data, FUN=Slope200KY)
+branch65$slope200KY <- scale(slope200KY)
+```
+
+#ALL ORDERS Multiple Regressions
+
+```{r}
+library(pander)
+##ALL ORDERS: 1Mya
+ALLsparse_results_1MY <- list(model = lm(branch65$CC ~ branch65$mean1MY + branch65$sd1MY + branch65$slope1MY))
+pander(ALLsparse_results_1MY$model)
+
+##ALL ORDERS: 400K
+ALLsparse_results_400KY <- list(model = lm(branch65$CC ~ branch65$mean400KY + branch65$sd400KY + branch65$slope400KY))
+pander(ALLsparse_results_400KY$model) 
+
+##ALL ORDERS: 200K
+ALLsparse_results_200KY <- list(model = lm(branch65$CC ~ branch65$mean200KY + branch65$sd200KY + branch65$slope200KY))
+pander(ALLsparse_results_200KY$model)
+```
+
+# PLOTS
+
+## Extant CC vs. Time
+
+```{r}
+library(dplyr)
+library(pander)
+
+  ## Separate Extants and Fossils
+exbrains <-read.table(file="brainclimatedata.txt", header=TRUE, sep="\t") ## Old data
+  exbrains$Actual.MYA <- exbrains$Actual.MYA * -1
+  exbrains$MYA <- exbrains$MYA * -1
+extants <- dplyr::filter(exbrains, Fossil == "Yes")
+fossils <- dplyr::filter(exbrains, Fossil == "No")
+
+  ## Extant CC over time
+model3 <- lm(data=filter(.data=extants, Order != "Insectivore"), log(CC) ~ Actual.MYA)
+  plot(extants$Actual.MYA, log(extants$CC), main = "All Orders")
+  abline(model3)
+  pander(model3)
+```
+
+## Fossil CC over time
+
+```{r}
+  ## All Orders
+model4 <- lm(data=filter(.data=fossils, Order != "Insectivore"), log(CC) ~ Actual.MYA)
+  plot(fossils$Actual.MYA, log(fossils$CC))
+  abline(model4)
+  pander(model4)
+  
+ ## Artiodactyla
+model4 <- lm(data=filter(.data=fossils, Order == "Artiodactyla"), log(CC) ~ Actual.MYA)
+  plot(fossils$Actual.MYA, log(fossils$CC))
+  abline(model4)
+  pander(model4)
+
+## Carnivora
+model4 <- lm(data=filter(.data=fossils, Order == "Carnivora"), log(CC) ~ Actual.MYA)
+  plot(fossils$Actual.MYA, log(fossils$CC))
+  abline(model4)
+  pander(model4)
+
+## Cetacea
+model4 <- lm(data=filter(.data=fossils, Order == "Cetacea"), log(CC) ~ Actual.MYA)
+  plot(fossils$Actual.MYA, log(fossils$CC))
+  abline(model4)
+  pander(model4)
+```
+
+# Ancestral CC over time
+
+```{r}
+ ## Filter order at beginning of script
+model5 <- lm(data=branch65, CC ~ mya)
+  plot(branch65$mya, branch65$CC)
+  abline(model5)
+  pander(model5)
+
+## Whether it's raw, logged, logged+scaled; ancestral CCs are always negatively correlated with time. This makes sense since as time gets smaller (65-0) brains get bigger. Had opposite valence in previous analyses bc time was negative.
+```
+
+## Fancy plots
+
+```{r}
+detach(package:dplyr, unload = TRUE)
+library(scales)
+zachos <- read.table("Zachos2001Climate.txt", header=TRUE, sep="\t")
+zachos$filteredO18 <- filter(zachos$o18, filter = rep(1, 70), method = "convolution")
+zachos$filteredO18 <- as.numeric(zachos$filteredO18)
+
+
+library(ggplot2)
+plot <- ggplot(data=branch65)
+
+## Climatic Variables
+climate <- plot + geom_line(aes(x=mya, y=mean1MY), color="blue") +
+  geom_line(aes(x=mya, y=sd1MY), color="red") +
+  geom_line(aes(x=mya, y=slope1MY), color="green") +
+  scale_x_reverse()
+climate
+
+#Extant CCs Plot
+Extant_plot <- plot +
+  geom_line(data=zachos, aes(x=age, y=rescale(filteredO18, c(-1,8))), color="blue") +
+  scale_x_reverse() +
+  geom_point(data=extants , aes(x=Actual.MYA, y=log(CC), color=Order), size=4) +
+  labs(x="MYA", y="log(CC)", title="Extant CC Over Time") +
+  theme(text = element_text(size=40)) +
+  geom_smooth(data=extants, aes(x=Actual.MYA, y=log(CC)), color="red", method=lm, se=FALSE, inherit.aes=FALSE)
+Extant_plot
+
+# Extant CCs as facets
+Facet_order_plot <- plot + 
+  geom_line(data=zachos,aes(x=age, y=rescale(filteredO18,c(-1,8))), color="blue") +
+  geom_point(data=exbrains, aes(y=log(CC), x=Actual.MYA, color=Order), size=3) + 
+  geom_smooth(data=exbrains, aes(Actual.MYA, log(CC)), method="lm", color="red") +
+  scale_x_reverse() +
+  facet_wrap(~Order) +
+  theme_bw(40)  +
+  theme(plot.title = element_text(vjust=3), legend.position="none", strip.background = element_rect(fill="black"), strip.text.x = element_text(color="white")) +
+  labs(x="MYA", y="log(CC)", title="Extant CC Over Time by Order")
+Facet_order_plot
+
+#Fossil CC Plot
+Fossil_plot <- plot +
+  geom_line(data=zachos, aes(x=age, y=rescale(filteredO18, c(-1,8))), color="blue") +
+  scale_x_reverse() +
+  geom_point(data=fossils , aes(x=Actual.MYA, y=log(CC), color=Order), size=4) +
+  labs(x="MYA", y="log(CC)", title="Fossil CC Over Time") +
+  theme(text = element_text(size=40)) +
+  geom_smooth(data=extants, aes(x=Actual.MYA, y=log(CC)), color="red", method=lm, se=FALSE, inherit.aes=FALSE)
+Fossil_plot
+
+#Ancestral CCs Plot
+Ancest_plot <- plot +
+  geom_line(data=zachos, aes(x=age, y=rescale(filteredO18, c(-1,8))), color="blue") +
+  scale_x_reverse() +
+  geom_point(data=branch65, aes(x=mya, y=CC), size=4) +
+  labs(x="MYA", y="log(CC)", title="Ancestral CC Over Time") +
+  theme(text = element_text(size=40)) +
+  geom_smooth(data=branch65, aes(x=mya, y=CC), color="red", method=lm, se=FALSE, inherit.aes=FALSE)
+Ancest_plot
+
+#Ancestral CCs Plot: w/ node labels
+Ancest_plot_nodes <- plot +
+  scale_x_reverse() +
+  geom_point(data=branch65, aes(x=mya, y=CC), size=2) +
+  geom_text(data=branch65, aes(x=mya, y=CC, label=nodes), hjust=0, vjust=0, size=4, color="purple") +
+  labs(x="MYA", y="Ancestral CC", title="Ancestral CC Over Time") +
+  theme(text = element_text(size=40)) +
+  geom_smooth(data=branch65, aes(x=mya, y=CC), color="red", method=lm, se=FALSE, inherit.aes=FALSE)
+Ancest_plot_nodes
+
+
+```
+
+## CC vs. Time (OLS)
+
+```{r}
+library(dplyr)
+
+CCvsTime  <- function(order){
+  filteredDF <- filter(fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ MYA, data = filteredDF)
+              ))
+}
+
+CCvsTime_results <- lapply(unique(fossils$Order), FUN=CCvsTime)
+
+```
+
+### CC vs. Time: Results
+
+```{r}
+invisible(lapply(CCvsTime_results, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "CC vs. Time by Order results"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+# Multiple regressions on fossils by order
+
+## Multiple regressions with just fossils 
+
+## 5 Ma time bins
+
+```{r}
+library(dplyr)
+doSparseMod5Mya <- function(order){
+  filteredDF <- filter(fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X5Mya_M_oxy + slope5MY + X5Mya_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_5Mya <- lapply(unique(fossils$Order), FUN=doSparseMod5Mya)
+
+```
+
+### Sparse model 5Mya results by order
+
+```{r}
+invisible(lapply(sparse_results_5Mya, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 5Mya full model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+plot <- ggplot(data=brains, aes(color=Order))
+
+PLOTsparse_results_5Mya <- ggplot() +
+  geom_point(data=fossils, aes(x=fossils$MYA, y=log(fossils$CC), color=fossils$Order)) +
+  geom_abline(intercept=sparse_results_5Mya$model$coefficients[1], slope=sparse_results_5Mya$model$coefficients[2], color="blue") +
+  geom_abline(intercept=sparse_results_5Mya$model$coefficients[1], slope=sparse_results_5Mya$model$coefficients[3], color="red") + 
+    geom_abline(intercept=sparse_results_5Mya$model$coefficients[1], slope=sparse_results_5Mya$model$coefficients[4], color="green") 
+PLOTsparse_results_5Mya
+              
+```
+
+# Next the 1Mya results
+
+```{r}
+doSparseMod1Mya <- function(order){
+  filteredDF <- filter(fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X1Mya_M_oxy + slope1MY + X1Mya_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_1Mya <- lapply(unique(fossils$Order), FUN=doSparseMod1Mya)
+
+```
+
+### Sparse model 1Mya results by order
+
+```{r}
+invisible(lapply(sparse_results_1Mya, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 1Mya full model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+```
+
+#400K time bins
+
+```{r}
+doSparseMod400k <- function(order){
+  filteredDF <- filter(fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X400k_M_oxy + slope400K + X400k_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_400k <- lapply(unique(fossils$Order), FUN=doSparseMod400k)
+```
+
+### Sparse model 400k results by order
+
+```{r}
+invisible(lapply(sparse_results_400k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 400k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+```
+
+#200k time bins
+
+```{r}
+doSparseMod200k <- function(order){
+  filteredDF <- filter(fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X200k_M_oxy + slope200K + X200k_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_200k <- lapply(unique(fossils$Order), FUN=doSparseMod200k)
+```
+
+### Sparse model 200k results by order
+
+```{r}
+invisible(lapply(sparse_results_200k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 200k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+# REPEAT BROKEN DOWN INTO SUBORDERS
+
+## 5Mya time bins
+
+```{r}
+doSparseMod5Mya <- function(suborder){
+  filteredDF <- filter(fossils, Suborder == suborder)
+  return(list(suborder=suborder,
+              model = lm(log(CC) ~ X5Mya_M_oxy + slope5MY + X5Mya_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_5Mya <- lapply(unique(fossils$Suborder), FUN=doSparseMod5Mya)
+```
+
+### Sparse model 5Mya results by Suborder
+
+```{r}
+invisible(lapply(sparse_results_5Mya, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$suborder, "results, 5Mya sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+# #1Mya time bins
+
+```{r}
+doSparseMod1Mya <- function(suborder){
+  filteredDF <- filter(fossils, Suborder == suborder)
+  return(list(suborder=suborder,
+              model = lm(log(CC) ~ X1Mya_M_oxy + slope1MY + X1Mya_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_1Mya <- lapply(unique(fossils$Suborder), FUN=doSparseMod1Mya)
+```
+
+### Sparse model 1Mya results by Suborder
+
+```{r}
+invisible(lapply(sparse_results_1Mya, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$suborder, "results, 1Mya sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+#400k time bins
+
+```{r}
+doSparseMod400k <- function(suborder){
+  filteredDF <- filter(fossils, Suborder == suborder)
+  return(list(suborder=suborder,
+              model = lm(log(CC) ~ X400k_M_oxy + slope400K + X400k_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_400k <- lapply(unique(fossils$Suborder), FUN=doSparseMod400k)
+```
+
+### Sparse model 400k results by Suborder
+
+```{r}
+invisible(lapply(sparse_results_400k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$suborder, "results, 400k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+#200k time bins
+```{r}
+doSparseMod200k <- function(suborder){
+  filteredDF <- filter(fossils, Suborder == suborder)
+  return(list(suborder=suborder,
+              model = lm(log(CC) ~ X200k_M_oxy + slope200K + X200k_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_200k <- lapply(unique(fossils$Suborder), FUN=doSparseMod200k)
+```
+
+### Sparse model 200k results by Suborder
+
+```{r}
+invisible(lapply(sparse_results_200k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$suborder, "results, 200k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+# 100k time bins
+
+```{r}
+doSparseMod100k <- function(suborder){
+  filteredDF <- filter(fossils, Suborder == suborder)
+  return(list(suborder=suborder,
+              model = lm(log(CC) ~ X100k_M_oxy + slope100K + X100k_SD_oxy, data = filteredDF)
+              ))
+}
+
+sparse_results_100k <- lapply(unique(fossils$Suborder), FUN=doSparseMod100k)
+```
+
+### Sparse model 100k results by Suborder
+
+```{r}
+invisible(lapply(sparse_results_100k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$suborder, "results, 100k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+## ^^^^^^^^^
+## Comparisons to Hominins over the last 5MY
+## ^^^^^^^^^
+
+```{r}
+library(dplyr)
+#Filter out CCs from only the last 5Mya
+short_fossils <- filter(fossils, MYA >= -5, Order != "Perissodactyla") %>% droplevels()
+
+short_plot <- ggplot() + 
+  geom_point(data=short_fossils, aes(x = MYA, y=log(CC), color=Order), size=4) + 
+geom_line(data=zachos,aes(x=age*-1, y=rescale(filteredO18*-1,c(-1,8)), color="δ18O")) +
+  xlim(-5, 0) + theme(text = element_text(size=40))
+short_plot
+
+```
+
+# Next the 1Mya results
+
+```{r}
+SHORTdoSparseMod1Mya <- function(order){
+  filteredDF <- filter(short_fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X1Mya_M_oxy + slope1MY + X1Mya_SD_oxy, data = filteredDF)
+              ))
+}
+
+SHORTsparse_results_1Mya <- lapply(unique(short_fossils$Order), FUN=SHORTdoSparseMod1Mya)
+
+```
+
+### Last 5Mya only: 1My interval
+
+```{r}
+invisible(lapply(SHORTsparse_results_1Mya, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 1Mya sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+```
+
+#400K time bins
+
+```{r}
+SHORTdoSparseMod400k <- function(order){
+  filteredDF <- filter(short_fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X400k_M_oxy + slope400K + X400k_SD_oxy, data = filteredDF)
+              ))
+}
+
+SHORTsparse_results_400k <- lapply(unique(short_fossils$Order), FUN=SHORTdoSparseMod400k)
+```
+
+### Last 5Mya only: 400k interval
+
+```{r}
+invisible(lapply(SHORTsparse_results_400k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 400k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+```
+
+#200k time bins
+
+```{r}
+SHORTdoSparseMod200k <- function(order){
+  filteredDF <- filter(short_fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X200k_M_oxy + slope200K + X200k_SD_oxy, data = filteredDF)
+              ))
+}
+
+SHORTsparse_results_200k <- lapply(unique(short_fossils$Order), FUN=SHORTdoSparseMod200k)
+```
+
+### Last 5Mya only: 200k interval
+
+```{r}
+invisible(lapply(SHORTsparse_results_200k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 200k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+
+#100k time bins
+
+```{r}
+SHORTdoSparseMod100k <- function(order){
+  filteredDF <- filter(short_fossils, Order == order)
+  return(list(order=order,
+              model = lm(log(CC) ~ X100k_M_oxy + slope100K + X100k_SD_oxy, data = filteredDF)
+              ))
+}
+
+SHORTsparse_results_100k <- lapply(unique(short_fossils$Order), FUN=SHORTdoSparseMod100k)
+```
+
+### Last 5Mya only: 100k interval
+
+```{r}
+invisible(lapply(SHORTsparse_results_100k, FUN = function(theList) {
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(paste(theList$order, "results, 100k sparse model"))
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("||||||||||||||||||||||||")
+  print("vvvvvvvvvvvvvvvvvvvvvvvv")
+  print(summary(theList$model))
+}))
+
+```
+  
