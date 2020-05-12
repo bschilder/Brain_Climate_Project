@@ -2,7 +2,7 @@
 Investigation of whether changes in paleoclimate influenced brain size evolution across five mammalian taxonomic orders
 
 
-![Climatic Influences figure.png](./Tables_Figures/Climatic Influences figure.png)  
+![Climatic Influences figure.png](/Tables_Figures/Climatic Influences figure.png)  
 
 
 
